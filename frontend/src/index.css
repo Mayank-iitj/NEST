@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #1B211A;
+  color: #EBD5AB;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-accent-green1 hover:bg-accent-green2 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl;
+  }
+  
+  .btn-secondary {
+    @apply bg-accent-green2 hover:bg-accent-green1 text-primary-dark font-semibold py-3 px-6 rounded-lg transition-all duration-200;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 bg-sand-light text-primary-dark rounded-lg border-2 border-transparent focus:border-accent-green1 focus:outline-none transition-colors duration-200 text-lg;
+  }
+  
+  .card {
+    @apply bg-primary-dark border-2 border-accent-green2 rounded-xl p-6 shadow-xl;
+  }
+  
+  .secure-badge {
+    @apply inline-flex items-center gap-2 bg-accent-green1 text-white px-4 py-2 rounded-full text-sm font-semibold;
+  }
+}

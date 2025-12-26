@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: pv_postgres_prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pharmacovigilance}
+      POSTGRES_USER: ${POSTGRES_USER:-pvuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pvuser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - pv_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: pv_redis_prod
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - pv_network
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: pv_backend_prod
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pvuser}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-pharmacovigilance}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      SECRET_KEY: ${SECRET_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      WHATSAPP_API_KEY: ${WHATSAPP_API_KEY:-mock}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-mock}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-mock}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      ENVIRONMENT: production
+      CORS_ORIGINS: ${CORS_ORIGINS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - pv_network
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: pv_frontend_prod
+    environment:
+      REACT_APP_API_URL: ${API_URL:-http://localhost:8000}
+    restart: unless-stopped
+    networks:
+      - pv_network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: pv_nginx_prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - pv_network
+
+volumes:
+  postgres_data:
+
+networks:
+  pv_network:
+    driver: bridge
