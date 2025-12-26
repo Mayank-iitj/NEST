@@ -1,164 +1,142 @@
-# Deployment Guide - Railway
+# Railway Deployment Guide - Fixed for Monorepo
 
-## Prerequisites
-- Railway account (https://railway.app)
-- GitHub repository (recommended) or Railway CLI
+## ✅ Project Structure Fixed
 
-## Option 1: Deploy via GitHub (Recommended)
+This project is now properly configured for Railway deployment with:
+- `backend/nixpacks.toml` - Backend build configuration
+- `frontend/nixpacks.toml` - Frontend build configuration
+- Separate service deployment support
 
-### Step 1: Push to GitHub
+## 🚂 Deploy to Railway - Step by Step
+
+### Step 1: Create New Project
+
+1. Go to https://railway.app/new
+2. Click **"Deploy from GitHub repo"**
+3. Authorize and select `Mayank-iitj/NEST`
+
+### Step 2: Deploy Backend Service
+
+**IMPORTANT**: You need to create the backend service FIRST.
+
+1. After connecting the repo, Railway will show "Failed to detect"
+2. Click **"Settings"** in the left sidebar
+3. Under **"Service Settings"**:
+   - **Root Directory**: `backend`
+   - **Build Command**: (leave default - nixpacks will detect)
+   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 4`
+
+4. Click **"Variables"** tab and add:
+
 ```bash
-cd pharmacovigilance-system
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/yourusername/pharmacovigilance-system.git
-git push -u origin main
-```
-
-### Step 2: Create Railway Project
-1. Go to https://railway.app
-2. Click "New Project"
-3. Select "Deploy from GitHub repo"
-4. Choose your repository
-
-### Step 3: Add Database Services
-1. Click "+ New" → "Database" → "PostgreSQL"
-2. Click "+ New" → "Database" → "Redis"
-
-### Step 4: Configure Backend Service
-1. Select the backend service
-2. Go to "Variables" tab
-3. Add the following environment variables:
-
-```
+# These will be auto-filled by Railway plugins
 DATABASE_URL=${POSTGRES_CONNECTION_STRING}
 REDIS_URL=${REDIS_CONNECTION_STRING}
-SECRET_KEY=your-random-secret-key-min-32-characters
-ENCRYPTION_KEY=your-32-byte-encryption-key-here
+
+# You must set these manually
+SECRET_KEY=your-random-32-character-secret-key-here
+ENCRYPTION_KEY=your-random-32-byte-encryption-key-here
 OPENAI_API_KEY=sk-your-openai-api-key
-WHATSAPP_API_KEY=your-whatsapp-key-or-mock
-TWILIO_ACCOUNT_SID=your-twilio-sid-or-mock
-TWILIO_AUTH_TOKEN=your-twilio-token-or-mock
 ENVIRONMENT=production
-CORS_ORIGINS=https://your-frontend-url.railway.app
+CORS_ORIGINS=*
+WHATSAPP_API_KEY=mock
+TWILIO_ACCOUNT_SID=mock
+TWILIO_AUTH_TOKEN=mock
 ```
 
-4. Go to "Settings" → "Deploy"
-   - Root Directory: `backend`
-   - Build Command: (leave default)
-   - Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-
-### Step 5: Configure Frontend Service
-1. Create new service from same repo
-2. Go to "Settings" → "Deploy"
-   - Root Directory: `frontend`
-   - Build Command: `npm install && npm run build`
-   - Start Command: `npx serve -s build -l $PORT`
-
-3. Add environment variable:
-```
-REACT_APP_API_URL=https://your-backend-url.railway.app
-```
-
-### Step 6: Deploy
-1. Railway will auto-deploy both services
-2. Get public URLs from each service's "Settings" → "Networking"
-3. Update CORS_ORIGINS in backend with frontend URL
-
-## Option 2: Deploy via Railway CLI
-
-### Step 1: Install Railway CLI
+**Generate secure keys:**
 ```bash
-npm install -g @railway/cli
+# SECRET_KEY (32 chars)
+openssl rand -hex 32
+
+# ENCRYPTION_KEY (32 bytes)
+openssl rand -hex 16
 ```
 
-### Step 2: Login and Initialize
+### Step 3: Add Database Services
+
+1. Click **"+ New"** in your project
+2. Select **"Database" → "PostgreSQL"**
+   - Railway will automatically set `POSTGRES_CONNECTION_STRING`
+   - This becomes `DATABASE_URL` in your backend
+
+3. Click **"+ New"** again
+4. Select **"Database" → "Redis"**
+   - Railway will automatically set `REDIS_CONNECTION_STRING`
+   - This becomes `REDIS_URL` in your backend
+
+### Step 4: Deploy Frontend Service (Optional)
+
+1. In the same project, click **"+ New"**
+2. Select **"GitHub Repo"** → Choose `Mayank-iitj/NEST` again
+3. Go to **"Settings"**:
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npx serve -s build -l $PORT`
+
+4. Add **Variables**:
 ```bash
-railway login
-cd pharmacovigilance-system
-railway init
+REACT_APP_API_URL=https://your-backend-service.railway.app
 ```
+(Replace with your actual backend Railway URL)
 
-### Step 3: Create Services
-```bash
-# Add PostgreSQL
-railway add --database postgresql
+### Step 5: Deploy & Verify
 
-# Add Redis
-railway add --database redis
+1. Save all settings
+2. Railway will automatically deploy both services
+3. Check deployment logs for any errors
+4. Get your service URLs:
+   - Backend: https://your-backend.railway.app
+   - Frontend: https://your-frontend.railway.app
 
-# Link backend
-cd backend
-railway link
-railway up
+5. Test endpoints:
+   - Backend health: `https://your-backend.railway.app/health`
+   - API docs: `https://your-backend.railway.app/api/docs`
+   - Frontend: `https://your-frontend.railway.app`
 
-# Link frontend
-cd ../frontend
-railway link
-railway up
-```
+## 🔧 Troubleshooting
 
-### Step 4: Set Environment Variables
-```bash
-railway variables set OPENAI_API_KEY=sk-your-key
-railway variables set SECRET_KEY=your-secret-key
-# ... add other variables
-```
+### "Railpack could not determine how to build"
+✅ **FIXED** - Root Directory must be set to `backend` or `frontend`
 
-### Step 5: Deploy
-```bash
-railway up
-```
-
-## Post-Deployment
-
-### 1. Database Migration
-Railway will automatically run the init.sql script on first PostgreSQL connection.
-
-### 2. Verify Health
-- Backend: https://your-backend.railway.app/health
-- API Docs: https://your-backend.railway.app/api/docs
-
-### 3. Test OTP
-Mock mode will work immediately. For real SMS/WhatsApp, add Twilio credentials.
-
-### 4. Monitor Logs
-```bash
-railway logs
-```
-
-## Cost Estimation (Railway)
-- Hobby Plan: $5/month per project
-- PostgreSQL: Included
-- Redis: Included
-- Backend + Frontend: ~$10-15/month total
-
-## Troubleshooting
+### Build Fails
+- Check **Logs** tab in Railway dashboard
+- Verify `nixpacks.toml` exists in the service directory
+- Ensure all dependencies are in `requirements.txt` or `package.json`
 
 ### Database Connection Issues
-Ensure DATABASE_URL uses Railway's connection string:
-```
-postgresql://postgres:password@host.railway.internal:5432/railway
-```
+- Use the **internal** connection string (ends with `.railway.internal`)
+- Railway automatically injects these as environment variables
 
 ### CORS Errors
-Update backend CORS_ORIGINS to include frontend URL:
-```
-CORS_ORIGINS=https://your-frontend.railway.app,https://your-backend.railway.app
-```
+- Set `CORS_ORIGINS` to include your frontend URL
+- Or use `*` for testing (not recommended for production)
 
-### Build Failures
-Check Railway logs and ensure:
-- Python 3.11 is used for backend
-- Node 18 is used for frontend
-- All dependencies in requirements.txt/package.json
+## 💰 Cost Estimate
 
-## Scaling
-To handle more traffic:
-1. Go to service settings
-2. Increase instances in "Deploy" settings
-3. Enable auto-scaling (Pro plan)
+- **Starter Plan**: $5/month
+- **PostgreSQL**: Included
+- **Redis**: Included  
+- **Backend + Frontend**: ~$10-15/month total
 
-## SSL/TLS
-Railway automatically provides SSL certificates for all deployments.
+Free trial: $5 credit (runs backend for ~1 month)
+
+## 🎯 Alternative: Backend Only on Railway
+
+**Cheaper option**: 
+- Deploy only backend + databases on Railway
+- Deploy frontend on **Vercel** (free for React apps)
+
+### Deploy Frontend to Vercel:
+1. Go to https://vercel.com/new/import
+2. Import `Mayank-iitj/NEST`
+3. Framework: Create React App
+4. Root Directory: `frontend`
+5. Environment Variable: `REACT_APP_API_URL=https://your-backend.railway.app`
+6. Deploy!
+
+**Cost**: Railway backend + Vercel frontend = ~$10/month total
+
+## ✅ You're Ready!
+
+Railway will now properly detect and build your project. Just follow the steps above!
